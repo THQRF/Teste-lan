@@ -3,23 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MooMoo P2P Ultra - Mobile Edition</title>
+    <title>MooMoo P2P Ultra - Pro Edition</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --border: #2c3e50; --green: #a2d058; --dark: #4e6e2a; }
+        :root { --border: #2c3e50; --green: #a2d058; --dark: #4e6e2a; --orange: #e67e22; }
         body, html { margin: 0; padding: 0; overflow: hidden; background: #b1cf67; font-family: 'Arial Rounded MT Bold', Arial, sans-serif; touch-action: none; user-select: none; }
         canvas { display: block; }
 
         /* MENU INICIAL */
         #menu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .card { background: var(--green); border: 6px solid var(--border); padding: 25px; border-radius: 30px; text-align: center; box-shadow: 0 10px 0 var(--dark); width: 320px; }
+        .card { background: var(--green); border: 6px solid var(--border); padding: 25px; border-radius: 30px; text-align: center; box-shadow: 0 10px 0 var(--dark); width: 340px; }
         input { padding: 12px; border: 3px solid var(--border); border-radius: 12px; margin: 8px 0; width: 85%; font-size: 16px; outline: none; }
-        .btn { background: #e67e22; color: white; border: 3px solid var(--border); padding: 12px 20px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 95%; margin: 5px 0; box-shadow: 0 5px 0 #a35d1a; transition: 0.1s; }
+        .btn { background: var(--orange); color: white; border: 3px solid var(--border); padding: 12px 20px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 95%; margin: 5px 0; box-shadow: 0 5px 0 #a35d1a; transition: 0.1s; font-size: 14px; }
         .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #a35d1a; }
 
         /* UI DO JOGO */
         #ui { position: absolute; top: 15px; left: 15px; pointer-events: none; display: none; z-index: 5; }
         .hud { background: rgba(0,0,0,0.6); padding: 12px; border-radius: 15px; border: 3px solid white; color: white; margin-bottom: 10px; font-size: 16px;}
+        .stats-detail { font-size: 11px; color: #f1c40f; margin-top: 5px; }
         #craft-panel { display: none; flex-direction: column; gap: 5px; margin-top: 10px; pointer-events: auto; }
         
         /* MINIMAPA */
@@ -37,19 +38,26 @@
 
     <div id="menu-overlay">
         <div class="card">
-            <h1 style="color:white; -webkit-text-stroke: 1.5px var(--border); font-size: 30px; margin:0 0 10px 0;">MooMoo Mobile</h1>
-            <input type="text" id="nick" placeholder="NOME" maxlength="12">
+            <h1 style="color:white; -webkit-text-stroke: 1.5px var(--border); font-size: 30px; margin:0 0 10px 0;">MooMoo P2P</h1>
+            <input type="text" id="nick" placeholder="NOME DO HERÓI" maxlength="12">
+            <button class="btn" style="background:#9b59b6; box-shadow:0 5px 0 #8e44ad;" onclick="toggleInputMode()" id="mode-btn">MODO: AUTO</button>
             <button class="btn" onclick="start('host')">CRIAR SERVIDOR</button>
-            <input type="text" id="targetId" placeholder="ID DO AMIGO">
+            <input type="text" id="targetId" placeholder="ID DO AMIGO (PARA ENTRAR)">
             <button class="btn" style="background:#3498db; box-shadow:0 5px 0 #2980b9;" onclick="start('join')">ENTRAR</button>
+            <p style="color: white; font-size: 10px; margin-top: 10px;">O progresso é carregado automaticamente.</p>
         </div>
     </div>
 
     <div id="ui">
         <div class="hud">
-            🍎 <span id="food">0</span> | 🌳 <span id="wood">0</span> | 🪨 <span id="stone">0</span>
+            🍎 <span id="food">0</span> | 🌳 <span id="wood">0</span> | 🪨 <span id="stone">0</span><br>
+            ❤️ <span id="hp-text">100/100</span>
+            <div class="stats-detail" id="weapon-desc">Arma: Mão (Dano: 5)</div>
         </div>
-        <button class="btn" style="width:100px; pointer-events:auto;" onclick="toggleCraft()">ITENS</button>
+        <div style="display: flex; gap: 5px; pointer-events: auto;">
+            <button class="btn" style="width:80px;" onclick="toggleCraft()">ITENS</button>
+            <button class="btn" style="width:80px; background:#27ae60; box-shadow:0 5px 0 #1e8449;" onclick="saveGame()">SALVAR</button>
+        </div>
         <div id="craft-panel">
             <button class="btn" style="font-size:11px;" onclick="craft('Espada')">ESPADA (30W, 20S)</button>
             <button class="btn" style="font-size:11px;" onclick="craft('Machado')">MACHADO (20W)</button>
@@ -77,23 +85,70 @@
     let others = {};
     let attackAnim = 0;
     let joyPos = { x: 0, y: 0 };
+    let inputMode = 'auto'; // 'auto', 'pc', 'mobile'
 
+    // JOGADOR COM NOVOS ATRIBUTOS
     let p = {
-        id: null, name: "User", x: 2500, y: 2500, hp: 100,
+        id: null, name: "User", x: 2500, y: 2500, 
+        hp: 100, maxHp: 100,
         wood: 0, food: 0, stone: 0,
-        weapon: { name: "Mão", dmg: 5 }, angle: 0
+        weapon: { name: "Mão", dmg: 5, speed: 1.0 }, 
+        angle: 0
     };
 
-    function generate() {
-        const types = ['tree', 'rock', 'bush'];
-        world = [];
-        for(let i=0; i<200; i++) {
-            world.push({
-                x: Math.random() * 5000,
-                y: Math.random() * 5000,
-                type: types[Math.floor(Math.random()*3)],
-                s: 30 + Math.random() * 15
-            });
+    // --- SISTEMA DE PERSISTÊNCIA ---
+    function saveGame() {
+        const data = {
+            name: p.name, x: p.x, y: p.y,
+            hp: p.hp, maxHp: p.maxHp,
+            wood: p.wood, food: p.food, stone: p.stone,
+            weapon: p.weapon
+        };
+        localStorage.setItem('moomoo_p2p_save', JSON.stringify(data));
+        alert("Progresso salvo localmente!");
+    }
+
+    function loadGame() {
+        const saved = localStorage.getItem('moomoo_p2p_save');
+        if(saved) {
+            const data = JSON.parse(saved);
+            Object.assign(p, data);
+            document.getElementById('nick').value = p.name;
+            updateUI();
+        }
+    }
+
+    // --- MODO DE CONTROLE ---
+    function toggleInputMode() {
+        if(inputMode === 'auto') inputMode = 'pc';
+        else if(inputMode === 'pc') inputMode = 'mobile';
+        else inputMode = 'auto';
+        document.getElementById('mode-btn').innerText = "MODO: " + inputMode.toUpperCase();
+    }
+
+    // --- CRAFT COM ATRIBUTOS ALEATÓRIOS ---
+    function craft(type) {
+        let wCost = type === 'Espada' ? 30 : 20;
+        let sCost = type === 'Espada' ? 20 : 0;
+
+        if(p.wood >= wCost && p.stone >= sCost) {
+            p.wood -= wCost; p.stone -= sCost;
+            
+            // Atributos base + variância aleatória
+            const baseDmg = type === 'Espada' ? 15 : 8;
+            const randDmg = Math.floor(Math.random() * 12); // +0 a 11
+            const randSpeed = (0.7 + Math.random() * 0.8).toFixed(2); // 0.7x a 1.5x
+
+            p.weapon = {
+                name: type,
+                dmg: baseDmg + randDmg,
+                speed: parseFloat(randSpeed)
+            };
+            
+            updateUI();
+            alert(`Crafted: ${type}!\nDano: ${p.weapon.dmg} | Vel: ${p.weapon.speed}x`);
+        } else {
+            alert("Recursos insuficientes!");
         }
     }
 
@@ -106,18 +161,24 @@
     window.onkeyup = e => keys[e.key.toLowerCase()] = false;
     
     window.onmousemove = e => {
-        if(!('ontouchstart' in window)) {
+        if(!isMobileActive()) {
             p.angle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2);
         }
     };
-    window.onmousedown = () => { if(!('ontouchstart' in window)) attack(); };
+    window.onmousedown = () => { if(!isMobileActive()) attack(); };
+
+    function isMobileActive() {
+        const touchDevice = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        return (inputMode === 'mobile') || (inputMode === 'auto' && touchDevice);
+    }
 
     function setupMobile() {
         const joy = document.getElementById('joy-container');
         const stick = document.getElementById('joy-stick');
-        const rect = joy.getBoundingClientRect();
-
+        
         const handleMove = (e) => {
+            e.preventDefault();
+            const rect = joy.getBoundingClientRect();
             const touch = e.touches[0];
             const dx = touch.clientX - (rect.left + 60);
             const dy = touch.clientY - (rect.top + 60);
@@ -126,7 +187,7 @@
             
             joyPos.x = Math.cos(angle) * (dist / 50);
             joyPos.y = Math.sin(angle) * (dist / 50);
-            p.angle = angle; // Olha para a direção do movimento
+            p.angle = angle;
             stick.style.transform = `translate(${joyPos.x * 40}px, ${joyPos.y * 40}px)`;
         };
 
@@ -146,10 +207,11 @@
             attackAnim = Math.PI;
             world.forEach(obj => {
                 let dist = Math.hypot(p.x - obj.x, p.y - obj.y);
-                if(dist < 90) {
-                    if(obj.type === 'tree') p.wood += 5;
-                    if(obj.type === 'rock') p.stone += 5;
-                    if(obj.type === 'bush') p.food += 5;
+                if(dist < 95) {
+                    const collectMult = Math.ceil(p.weapon.dmg / 5);
+                    if(obj.type === 'tree') p.wood += 5 * collectMult;
+                    if(obj.type === 'rock') p.stone += 5 * collectMult;
+                    if(obj.type === 'bush') p.food += 5 * collectMult;
                     updateUI();
                 }
             });
@@ -158,44 +220,36 @@
     }
 
     function heal() { 
-        if(p.food >= 10 && p.hp < 100) { 
-            p.food -= 10; p.hp = Math.min(100, p.hp+20); updateUI(); sendData();
+        if(p.food >= 10 && p.hp < p.maxHp) { 
+            p.food -= 10; 
+            p.hp = Math.min(p.maxHp, p.hp + 20); 
+            updateUI(); 
+            sendData();
         } 
     }
 
+    // --- GAME LOOP ---
     function update() {
-        // Movimento Teclado
-        if(keys['w']) p.y -= 5; if(keys['s']) p.y += 5;
-        if(keys['a']) p.x -= 5; if(keys['d']) p.x += 5;
+        // Teclado
+        const speed = 5;
+        if(keys['w']) p.y -= speed; if(keys['s']) p.y += speed;
+        if(keys['a']) p.x -= speed; if(keys['d']) p.x += speed;
         
-        // Movimento Joystick
-        p.x += joyPos.x * 6;
-        p.y += joyPos.y * 6;
+        // Joystick
+        p.x += joyPos.x * (speed + 1);
+        p.y += joyPos.y * (speed + 1);
 
         p.x = Math.max(0, Math.min(5000, p.x));
         p.y = Math.max(0, Math.min(5000, p.y));
 
-        if(attackAnim > 0) attackAnim -= 0.3;
+        // Animação de ataque influenciada pela velocidade da arma
+        if(attackAnim > 0) attackAnim -= (0.2 * p.weapon.speed);
+        
         if(keys['w'] || keys['s'] || keys['a'] || keys['d'] || joyPos.x !== 0) sendData();
 
         // Minimapa
         mCtx.fillStyle = "#b1cf67"; mCtx.fillRect(0,0,100,100);
-        mCtx.fillStyle = "white"; mCtx.fillRect((p.x/5000)*100, (p.y/5000)*100, 3, 3);
-    }
-
-    function drawPlayer(x, y, ang, name, hp, isMe, anim) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.fillStyle = "white"; ctx.textAlign = "center";
-        ctx.font = "bold 14px Arial"; ctx.fillText(name, 0, -45);
-        ctx.rotate(ang);
-        let off = Math.sin(anim || 0) * 12;
-        ctx.fillStyle = "#d2b48c"; ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(25 + off, -15, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.arc(25 + off, 15, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = isMe ? "#d2b48c" : "#e74c3c";
-        ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        ctx.restore();
+        mCtx.fillStyle = "white"; mCtx.fillRect((p.x/5000)*100, (p.y/5000)*100, 4, 4);
     }
 
     function render() {
@@ -204,7 +258,7 @@
         ctx.save();
         ctx.translate(canvas.width/2 - p.x, canvas.height/2 - p.y);
         
-        // Grid
+        // Grid simples
         ctx.strokeStyle = "rgba(0,0,0,0.05)";
         for(let i=0; i<=5000; i+=100) {
             ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, 5000); ctx.stroke();
@@ -232,12 +286,38 @@
         if(gameRunning) { update(); requestAnimationFrame(render); }
     }
 
+    function drawPlayer(x, y, ang, name, hp, isMe, anim) {
+        ctx.save();
+        ctx.translate(x, y);
+        
+        // Barra de vida simples
+        ctx.fillStyle = "red"; ctx.fillRect(-30, -55, 60, 8);
+        ctx.fillStyle = "#2ecc71"; ctx.fillRect(-30, -55, 60 * (hp/100), 8);
+
+        ctx.fillStyle = "white"; ctx.textAlign = "center";
+        ctx.font = "bold 14px Arial"; ctx.fillText(name, 0, -65);
+        
+        ctx.rotate(ang);
+        let off = Math.sin(anim || 0) * 15;
+        
+        // Mãos
+        ctx.fillStyle = "#d2b48c"; ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(25 + off, -15, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(25 + off, 15, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        
+        // Corpo
+        ctx.fillStyle = isMe ? "#d2b48c" : "#e74c3c";
+        ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+    }
+
+    // --- INICIALIZAÇÃO ---
     function start(mode) {
         p.name = document.getElementById('nick').value || "Player";
         document.getElementById('menu-overlay').style.display = 'none';
         document.getElementById('ui').style.display = 'block';
         
-        if('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        if(isMobileActive()) {
             document.getElementById('mobile-btns').style.display = 'flex';
             document.getElementById('joy-container').style.display = 'block';
             setupMobile();
@@ -249,6 +329,19 @@
         initP2P(mode);
     }
 
+    function generate() {
+        const types = ['tree', 'rock', 'bush'];
+        world = [];
+        for(let i=0; i<200; i++) {
+            world.push({
+                x: Math.random() * 5000,
+                y: Math.random() * 5000,
+                type: types[Math.floor(Math.random()*3)],
+                s: 30 + Math.random() * 15
+            });
+        }
+    }
+
     function toggleCraft() {
         const el = document.getElementById('craft-panel');
         el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
@@ -258,13 +351,15 @@
         document.getElementById('food').innerText = p.food;
         document.getElementById('wood').innerText = p.wood;
         document.getElementById('stone').innerText = p.stone;
+        document.getElementById('hp-text').innerText = `${Math.floor(p.hp)}/${p.maxHp}`;
+        document.getElementById('weapon-desc').innerText = `Arma: ${p.weapon.name} (Dano: ${p.weapon.dmg} | Vel: ${p.weapon.speed}x)`;
     }
 
     function initP2P(mode) {
         peer = new Peer();
         peer.on('open', id => { 
             p.id = id;
-            if(mode === 'host') alert("SEU ID: " + id);
+            if(mode === 'host') prompt("SEU ID (ENVIE PARA O AMIGO):", id);
             else {
                 const tid = document.getElementById('targetId').value;
                 if(tid) { conn = peer.connect(tid); setupConn(); }
@@ -283,7 +378,11 @@
             conn.send({ id: p.id, x: p.x, y: p.y, angle: p.angle, name: p.name, hp: p.hp, anim: attackAnim });
         }
     }
+
+    // Carregar save ao iniciar a página
+    window.onload = loadGame;
+
 </script>
 </body>
-    </html>
-    
+            </html>
+            
