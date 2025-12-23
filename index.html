@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MooMoo P2P - Craft & Combat</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #b1cf67; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
+        
+        #ui-container { position: absolute; top: 10px; left: 10px; color: white; text-shadow: 2px 2px 4px #000; pointer-events: none; }
+        .stat-box { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; margin-bottom: 5px; }
+        
+        #craft-menu { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 15px; pointer-events: auto; }
+        .craft-item { width: 60px; height: 60px; background: #888; border: 3px solid #444; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; text-align: center; color: white; transition: 0.2s; }
+        .craft-item:hover { background: #aaa; transform: scale(1.1); }
+        .active-tool { border-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; }
+
+        #peer-id-display { position: absolute; top: 10px; right: 10px; background: white; padding: 5px; font-size: 12px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div id="peer-id-display">Seu ID: <span id="my-id">...</span></div>
+
+    <div id="ui-container">
+        <div class="stat-box">
+            🌳 Madeira: <span id="res-wood">0</span><br>
+            🪨 Pedra: <span id="res-stone">0</span>
+        </div>
+        <div class="stat-box">
+            ⭐ Nível: <span id="level">1</span><br>
+            ⚔️ Kills: <span id="kills">0</span>
+        </div>
+    </div>
+
+    <div id="craft-menu">
+        <div class="craft-item" onclick="craft('machado')">🪓 Machado<br>(20 M)</div>
+        <div class="craft-item" onclick="craft('picareta')">⛏️ Picareta<br>(20 P)</div>
+        <div class="craft-item" onclick="craft('espada')">⚔️ Espada<br>(30 M/P)</div>
+        <div class="craft-item" onclick="craft('arco')">🏹 Arco<br>(50 M)</div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Configuração Inicial
+    let player = {
+        x: 1000, y: 1000,
+        res: { wood: 0, stone: 0 },
+        level: 1, kills: 0,
+        tool: 'mao',
+        hp: 100
+    };
+
+    const world = {
+        trees: [],
+        rocks: [],
+        enemies: []
+    };
+
+    // Gerar Mapa Simples
+    for(let i=0; i<50; i++) {
+        world.trees.push({x: Math.random()*5000, y: Math.random()*5000});
+        world.rocks.push({x: Math.random()*5000, y: Math.random()*5000});
+    }
+
+    // --- SISTEMA DE CRAFT ---
+    function craft(item) {
+        if(item === 'machado' && player.res.wood >= 20) {
+            player.res.wood -= 20; player.tool = 'machado';
+        } else if(item === 'picareta' && player.res.stone >= 20) {
+            player.res.stone -= 20; player.tool = 'picareta';
+        } else if(item === 'espada' && player.res.wood >= 30 && player.res.stone >= 30) {
+            player.res.wood -= 30; player.res.stone -= 30; player.tool = 'espada';
+        } else if(item === 'arco' && player.res.wood >= 50) {
+            player.res.wood -= 50; player.tool = 'arco';
+        } else {
+            alert("Recursos insuficientes!");
+        }
+        updateUI();
+    }
+
+    // --- LÓGICA DE COLETA ---
+    window.addEventListener('mousedown', (e) => {
+        // Simulação de clique no mapa (simplificado para o exemplo)
+        // Aqui você verificaria a distância entre o player e a árvore/pedra mais próxima
+        coletarRecurso();
+    });
+
+    function coletarRecurso() {
+        let ganho = 1;
+        if(player.tool === 'machado') ganho = 5;
+        if(player.tool === 'picareta') ganho = 5;
+        
+        // Simular coleta ao clicar
+        player.res.wood += ganho;
+        player.res.stone += ganho;
+        updateUI();
+    }
+
+    // --- SISTEMA DE LEVEL UP ---
+    // A regra: Só sobe de nível ao matar alguém
+    function onKill() {
+        player.kills++;
+        player.level++; // Sobe de nível
+        player.hp = 100 + (player.level * 10); // Aumenta vida máxima
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('res-wood').innerText = player.res.wood;
+        document.getElementById('res-stone').innerText = player.res.stone;
+        document.getElementById('level').innerText = player.level;
+        document.getElementById('kills').innerText = player.kills;
+    }
+
+    // --- MULTIPLAYER P2P (PeerJS) ---
+    const peer = new Peer();
+    peer.on('open', id => document.getElementById('my-id').innerText = id);
+
+    // Loop de Movimento
+    const keys = {};
+    window.onkeydown = e => keys[e.key] = true;
+    window.onkeyup = e => keys[e.key] = false;
+
+    function update() {
+        if(keys['w'] || keys['ArrowUp']) player.y -= 5;
+        if(keys['s'] || keys['ArrowDown']) player.y += 5;
+        if(keys['a'] || keys['ArrowLeft']) player.x -= 5;
+        if(keys['d'] || keys['ArrowRight']) player.x += 5;
+    }
+
+    function draw() {
+        ctx.fillStyle = "#b1cf67";
+        ctx.fillRect(0,0, canvas.width, canvas.height);
+
+        // Desenhar Jogador
+        ctx.save();
+        ctx.translate(canvas.width/2, canvas.height/2);
+        
+        // Corpo
+        ctx.fillStyle = "#d2b48c";
+        ctx.beginPath();
+        ctx.arc(0, 0, 30, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Ferramenta Visual
+        ctx.fillStyle = "#555";
+        if(player.tool !== 'mao') {
+            ctx.fillRect(25, -5, 20, 10); // Representação simples da ferramenta
+        }
+
+        ctx.restore();
+        
+        update();
+        requestAnimationFrame(draw);
+    }
+    draw();
+</script>
+</body>
+</html>
