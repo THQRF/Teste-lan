@@ -3,66 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MooMoo P2P Ultra - Corrigido</title>
+    <title>MooMoo P2P Ultra - Mobile Edition</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --border: #2c3e50; --green: #a2d058; --dark: #4e6e2a; }
-        body, html { margin: 0; padding: 0; overflow: hidden; background: #b1cf67; font-family: 'Arial Rounded MT Bold', Arial, sans-serif; }
-        canvas { display: block; touch-action: none; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #b1cf67; font-family: 'Arial Rounded MT Bold', Arial, sans-serif; touch-action: none; user-select: none; }
+        canvas { display: block; }
 
         /* MENU INICIAL */
         #menu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .card { background: var(--green); border: 6px solid var(--border); padding: 30px; border-radius: 30px; text-align: center; box-shadow: 0 10px 0 var(--dark); width: 340px; }
+        .card { background: var(--green); border: 6px solid var(--border); padding: 25px; border-radius: 30px; text-align: center; box-shadow: 0 10px 0 var(--dark); width: 320px; }
         input { padding: 12px; border: 3px solid var(--border); border-radius: 12px; margin: 8px 0; width: 85%; font-size: 16px; outline: none; }
         .btn { background: #e67e22; color: white; border: 3px solid var(--border); padding: 12px 20px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 95%; margin: 5px 0; box-shadow: 0 5px 0 #a35d1a; transition: 0.1s; }
         .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #a35d1a; }
 
         /* UI DO JOGO */
-        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; display: none; }
-        .hud { background: rgba(0,0,0,0.6); padding: 15px; border-radius: 20px; border: 3px solid white; color: white; margin-bottom: 10px; font-size: 18px;}
-        
+        #ui { position: absolute; top: 15px; left: 15px; pointer-events: none; display: none; z-index: 5; }
+        .hud { background: rgba(0,0,0,0.6); padding: 12px; border-radius: 15px; border: 3px solid white; color: white; margin-bottom: 10px; font-size: 16px;}
         #craft-panel { display: none; flex-direction: column; gap: 5px; margin-top: 10px; pointer-events: auto; }
-        #minimap { position: absolute; bottom: 20px; right: 20px; width: 140px; height: 140px; background: rgba(0,0,0,0.3); border: 4px solid white; border-radius: 15px; overflow: hidden; }
         
-        /* MOBILE */
-        #mobile-btns { position: absolute; bottom: 30px; right: 180px; display: none; gap: 15px; }
-        .m-btn { width: 70px; height: 70px; background: rgba(255,255,255,0.4); border: 4px solid white; border-radius: 50%; font-size: 30px; display: flex; align-items: center; justify-content: center; color: white; pointer-events: auto; user-select: none; }
+        /* MINIMAPA */
+        #minimap { position: absolute; top: 15px; right: 15px; width: 100px; height: 100px; background: rgba(0,0,0,0.3); border: 3px solid white; border-radius: 10px; overflow: hidden; }
+
+        /* CONTROLES MOBILE */
+        #joy-container { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; background: rgba(255,255,255,0.2); border-radius: 50%; display: none; touch-action: none; }
+        #joy-stick { position: absolute; width: 50px; height: 50px; background: #fff; border-radius: 50%; top: 35px; left: 35px; opacity: 0.7; }
+        
+        #mobile-btns { position: absolute; bottom: 40px; right: 40px; display: none; flex-direction: column; gap: 15px; }
+        .m-btn { width: 75px; height: 75px; background: rgba(0,0,0,0.5); border: 4px solid white; border-radius: 50%; font-size: 30px; display: flex; align-items: center; justify-content: center; color: white; pointer-events: auto; }
     </style>
 </head>
 <body>
 
     <div id="menu-overlay">
         <div class="card">
-            <h1 style="color:white; -webkit-text-stroke: 2px var(--border); font-size: 35px; margin:0 0 15px 0;">MooMoo Clone</h1>
-            <input type="text" id="nick" placeholder="SEU NOME" maxlength="12">
+            <h1 style="color:white; -webkit-text-stroke: 1.5px var(--border); font-size: 30px; margin:0 0 10px 0;">MooMoo Mobile</h1>
+            <input type="text" id="nick" placeholder="NOME" maxlength="12">
             <button class="btn" onclick="start('host')">CRIAR SERVIDOR</button>
-            <div style="color:white; margin:10px 0;">OU</div>
-            <input type="text" id="targetId" placeholder="ID DO AMIGO (PARA ENTRAR)">
-            <button class="btn" style="background:#3498db; box-shadow:0 5px 0 #2980b9;" onclick="start('join')">ENTRAR NO SERVER</button>
-            <hr style="border:1px solid var(--border); margin:15px 0;">
-            <p style="color:white; font-size:12px;">DICA: 'Q' para comer | 'P' para salvar</p>
+            <input type="text" id="targetId" placeholder="ID DO AMIGO">
+            <button class="btn" style="background:#3498db; box-shadow:0 5px 0 #2980b9;" onclick="start('join')">ENTRAR</button>
         </div>
     </div>
 
     <div id="ui">
         <div class="hud">
-            🍎 <span id="food">0</span> | 🌳 <span id="wood">0</span> | 🪨 <span id="stone">0</span><br>
-            ⚔️ <span id="wpn">Mão</span>
+            🍎 <span id="food">0</span> | 🌳 <span id="wood">0</span> | 🪨 <span id="stone">0</span>
         </div>
-        <button class="btn" style="width:120px; pointer-events:auto;" onclick="toggleCraft()">CRAFT</button>
+        <button class="btn" style="width:100px; pointer-events:auto;" onclick="toggleCraft()">ITENS</button>
         <div id="craft-panel">
-            <button class="btn" style="font-size:12px;" onclick="craft('Espada')">ESPADA (30W, 20S)</button>
-            <button class="btn" style="font-size:12px;" onclick="craft('Machado')">MACHADO (20W)</button>
-            <button class="btn" style="font-size:12px;" onclick="craft('Picareta')">PICARETA (20S)</button>
+            <button class="btn" style="font-size:11px;" onclick="craft('Espada')">ESPADA (30W, 20S)</button>
+            <button class="btn" style="font-size:11px;" onclick="craft('Machado')">MACHADO (20W)</button>
         </div>
     </div>
+
+    <div id="joy-container"><div id="joy-stick"></div></div>
 
     <div id="mobile-btns">
-        <div class="m-btn" onmousedown="attack()">⚔️</div>
-        <div class="m-btn" onmousedown="heal()">🍎</div>
+        <div class="m-btn" id="btn-attack">⚔️</div>
+        <div class="m-btn" id="btn-heal" style="background: rgba(46, 204, 113, 0.5);">🍎</div>
     </div>
 
-    <div id="minimap"><canvas id="miniCanvas" width="140" height="140"></canvas></div>
+    <div id="minimap"><canvas id="miniCanvas" width="100" height="100"></canvas></div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -71,84 +72,74 @@
     const mCanvas = document.getElementById('miniCanvas');
     const mCtx = mCanvas.getContext('2d');
 
-    let peer, conn;
+    let peer, conn, gameRunning = false;
     let world = [];
-    let others = {}; // Guarda outros jogadores
-    let gameRunning = false;
+    let others = {};
     let attackAnim = 0;
+    let joyPos = { x: 0, y: 0 };
 
     let p = {
-        id: null,
-        name: "User", x: 2500, y: 2500, hp: 100,
+        id: null, name: "User", x: 2500, y: 2500, hp: 100,
         wood: 0, food: 0, stone: 0,
         weapon: { name: "Mão", dmg: 5 }, angle: 0
     };
 
-    // --- PROCEDURAL ---
-    function generate(seed = null) {
-        if(seed) Math.seedrandom && Math.seedrandom(seed); 
+    function generate() {
         const types = ['tree', 'rock', 'bush'];
         world = [];
-        for(let i=0; i<250; i++) {
+        for(let i=0; i<200; i++) {
             world.push({
-                id: i,
                 x: Math.random() * 5000,
                 y: Math.random() * 5000,
                 type: types[Math.floor(Math.random()*3)],
-                s: 35 + Math.random() * 15
+                s: 30 + Math.random() * 15
             });
         }
     }
 
-    // --- DRAWING ---
-    function drawPlayer(x, y, ang, name, hp, isMe, animValue) {
-        ctx.save();
-        ctx.translate(x, y);
-        
-        // Nome e Vida
-        ctx.fillStyle = "white"; ctx.textAlign = "center";
-        ctx.font = "bold 16px Arial"; ctx.fillText(name, 0, -50);
-        ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(-25, -45, 50, 6);
-        ctx.fillStyle = "#2ecc71"; ctx.fillRect(-25, -45, (hp/100)*50, 6);
-
-        ctx.rotate(ang);
-        // Mãos com animação
-        let offset = Math.sin(animValue || 0) * 15;
-        ctx.fillStyle = "#d2b48c"; ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(30 + offset, -15, 10, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.arc(30 + offset, 15, 10, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        
-        // Corpo
-        ctx.fillStyle = isMe ? "#d2b48c" : "#e74c3c";
-        ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        ctx.restore();
-    }
-
-    function drawObject(obj) {
-        ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 4;
-        if(obj.type === 'tree') {
-            ctx.fillStyle = "#5d9732";
-            ctx.beginPath(); ctx.arc(obj.x, obj.y, obj.s, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        } else if(obj.type === 'rock') {
-            ctx.fillStyle = "#7f8c8d";
-            ctx.beginPath(); ctx.rect(obj.x-obj.s, obj.y-obj.s, obj.s*2, obj.s*2); ctx.fill(); ctx.stroke();
-        } else {
-            ctx.fillStyle = "#d35400";
-            ctx.beginPath(); ctx.arc(obj.x, obj.y, 15, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        }
-    }
-
-    // --- INPUTS ---
+    // --- CONTROLES ---
     const keys = {};
     window.onkeydown = e => { 
         keys[e.key.toLowerCase()] = true; 
         if(e.key === 'q') heal(); 
     };
     window.onkeyup = e => keys[e.key.toLowerCase()] = false;
+    
     window.onmousemove = e => {
-        p.angle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2);
+        if(!('ontouchstart' in window)) {
+            p.angle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2);
+        }
     };
-    window.onmousedown = () => attack();
+    window.onmousedown = () => { if(!('ontouchstart' in window)) attack(); };
+
+    function setupMobile() {
+        const joy = document.getElementById('joy-container');
+        const stick = document.getElementById('joy-stick');
+        const rect = joy.getBoundingClientRect();
+
+        const handleMove = (e) => {
+            const touch = e.touches[0];
+            const dx = touch.clientX - (rect.left + 60);
+            const dy = touch.clientY - (rect.top + 60);
+            const dist = Math.min(Math.hypot(dx, dy), 50);
+            const angle = Math.atan2(dy, dx);
+            
+            joyPos.x = Math.cos(angle) * (dist / 50);
+            joyPos.y = Math.sin(angle) * (dist / 50);
+            p.angle = angle; // Olha para a direção do movimento
+            stick.style.transform = `translate(${joyPos.x * 40}px, ${joyPos.y * 40}px)`;
+        };
+
+        joy.addEventListener('touchstart', handleMove);
+        joy.addEventListener('touchmove', handleMove);
+        joy.addEventListener('touchend', () => {
+            joyPos = { x: 0, y: 0 };
+            stick.style.transform = `translate(0,0)`;
+        });
+
+        document.getElementById('btn-attack').addEventListener('touchstart', (e) => { e.preventDefault(); attack(); });
+        document.getElementById('btn-heal').addEventListener('touchstart', (e) => { e.preventDefault(); heal(); });
+    }
 
     function attack() {
         if(attackAnim <= 0) {
@@ -168,72 +159,89 @@
 
     function heal() { 
         if(p.food >= 10 && p.hp < 100) { 
-            p.food -= 10; 
-            p.hp = Math.min(100, p.hp+20); 
-            updateUI(); 
-            sendData();
+            p.food -= 10; p.hp = Math.min(100, p.hp+20); updateUI(); sendData();
         } 
     }
 
     function update() {
-        if(keys['w'] || keys['arrowup']) p.y -= 5; 
-        if(keys['s'] || keys['arrowdown']) p.y += 5;
-        if(keys['a'] || keys['arrowleft']) p.x -= 5; 
-        if(keys['d'] || keys['arrowright']) p.x += 5;
+        // Movimento Teclado
+        if(keys['w']) p.y -= 5; if(keys['s']) p.y += 5;
+        if(keys['a']) p.x -= 5; if(keys['d']) p.x += 5;
         
-        if(attackAnim > 0) attackAnim -= 0.3;
-        
-        // Limites do mapa
+        // Movimento Joystick
+        p.x += joyPos.x * 6;
+        p.y += joyPos.y * 6;
+
         p.x = Math.max(0, Math.min(5000, p.x));
         p.y = Math.max(0, Math.min(5000, p.y));
 
-        // Enviar dados a cada frame de movimento
-        if(keys['w'] || keys['s'] || keys['a'] || keys['d']) sendData();
+        if(attackAnim > 0) attackAnim -= 0.3;
+        if(keys['w'] || keys['s'] || keys['a'] || keys['d'] || joyPos.x !== 0) sendData();
 
         // Minimapa
-        mCtx.fillStyle = "#b1cf67"; mCtx.fillRect(0,0,140,140);
-        mCtx.fillStyle = "white"; mCtx.fillRect((p.x/5000)*140, (p.y/5000)*140, 4, 4);
-        mCtx.fillStyle = "red";
-        for(let id in others) {
-            mCtx.fillRect((others[id].x/5000)*140, (others[id].y/5000)*140, 4, 4);
-        }
+        mCtx.fillStyle = "#b1cf67"; mCtx.fillRect(0,0,100,100);
+        mCtx.fillStyle = "white"; mCtx.fillRect((p.x/5000)*100, (p.y/5000)*100, 3, 3);
+    }
+
+    function drawPlayer(x, y, ang, name, hp, isMe, anim) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "white"; ctx.textAlign = "center";
+        ctx.font = "bold 14px Arial"; ctx.fillText(name, 0, -45);
+        ctx.rotate(ang);
+        let off = Math.sin(anim || 0) * 12;
+        ctx.fillStyle = "#d2b48c"; ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(25 + off, -15, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(25 + off, 15, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = isMe ? "#d2b48c" : "#e74c3c";
+        ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.restore();
     }
 
     function render() {
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
         ctx.clearRect(0,0, canvas.width, canvas.height);
-        
         ctx.save();
         ctx.translate(canvas.width/2 - p.x, canvas.height/2 - p.y);
         
         // Grid
         ctx.strokeStyle = "rgba(0,0,0,0.05)";
-        ctx.lineWidth = 2;
         for(let i=0; i<=5000; i+=100) {
             ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, 5000); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(5000, i); ctx.stroke();
         }
 
-        world.forEach(drawObject);
-        
-        // Desenhar outros jogadores
+        world.forEach(obj => {
+            ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 4;
+            if(obj.type === 'tree') ctx.fillStyle = "#5d9732";
+            else if(obj.type === 'rock') ctx.fillStyle = "#7f8c8d";
+            else ctx.fillStyle = "#d35400";
+            ctx.beginPath(); 
+            if(obj.type === 'rock') ctx.rect(obj.x-obj.s, obj.y-obj.s, obj.s*2, obj.s*2);
+            else ctx.arc(obj.x, obj.y, obj.s, 0, Math.PI*2);
+            ctx.fill(); ctx.stroke();
+        });
+
         for(let id in others) {
             let o = others[id];
             drawPlayer(o.x, o.y, o.angle, o.name, o.hp, false, o.anim);
         }
-
         drawPlayer(p.x, p.y, p.angle, p.name, p.hp, true, attackAnim);
         
         ctx.restore();
         if(gameRunning) { update(); requestAnimationFrame(render); }
     }
 
-    // --- SISTEMAS ---
     function start(mode) {
-        p.name = document.getElementById('nick').value || "Player_" + Math.floor(Math.random()*99);
+        p.name = document.getElementById('nick').value || "Player";
         document.getElementById('menu-overlay').style.display = 'none';
         document.getElementById('ui').style.display = 'block';
-        if('ontouchstart' in window) document.getElementById('mobile-btns').style.display = 'flex';
+        
+        if('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            document.getElementById('mobile-btns').style.display = 'flex';
+            document.getElementById('joy-container').style.display = 'block';
+            setupMobile();
+        }
         
         generate();
         gameRunning = true;
@@ -246,73 +254,36 @@
         el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
     }
 
-    function craft(type) {
-        if(type === 'Espada' && p.wood >= 30 && p.stone >= 20) { 
-            p.wood -= 30; p.stone -= 20; p.weapon = {name: "Espada", dmg: 20}; 
-        }
-        else if(type === 'Machado' && p.wood >= 20) { 
-            p.wood -= 20; p.weapon = {name: "Machado", dmg: 10}; 
-        }
-        else if(type === 'Picareta' && p.stone >= 20) {
-            p.stone -= 20; p.weapon = {name: "Picareta", dmg: 10};
-        } else {
-            alert("Recursos insuficientes!");
-        }
-        document.getElementById('wpn').innerText = p.weapon.name;
-        updateUI();
-    }
-
     function updateUI() {
         document.getElementById('food').innerText = p.food;
         document.getElementById('wood').innerText = p.wood;
         document.getElementById('stone').innerText = p.stone;
     }
 
-    // --- MULTIPLAYER P2P ---
     function initP2P(mode) {
         peer = new Peer();
         peer.on('open', id => { 
             p.id = id;
-            if(mode === 'host') {
-                console.log("Seu ID:", id);
-                alert("ID DO SERVIDOR: " + id + "\nEnvie para seu amigo!");
-            } else {
+            if(mode === 'host') alert("SEU ID: " + id);
+            else {
                 const tid = document.getElementById('targetId').value;
-                if(tid) {
-                    conn = peer.connect(tid);
-                    setupConn();
-                }
+                if(tid) { conn = peer.connect(tid); setupConn(); }
             }
         });
-
-        peer.on('connection', c => {
-            conn = c;
-            setupConn();
-        });
+        peer.on('connection', c => { conn = c; setupConn(); });
     }
 
     function setupConn() {
-        conn.on('open', () => {
-            setInterval(sendData, 50); // Envio constante de posição
-        });
-        conn.on('data', data => {
-            others[data.id] = data;
-        });
+        conn.on('open', () => setInterval(sendData, 50));
+        conn.on('data', data => { others[data.id] = data; });
     }
 
     function sendData() {
         if(conn && conn.open) {
-            conn.send({
-                id: p.id,
-                x: p.x,
-                y: p.y,
-                angle: p.angle,
-                name: p.name,
-                hp: p.hp,
-                anim: attackAnim
-            });
+            conn.send({ id: p.id, x: p.x, y: p.y, angle: p.angle, name: p.name, hp: p.hp, anim: attackAnim });
         }
     }
 </script>
 </body>
-</html>
+    </html>
+    
