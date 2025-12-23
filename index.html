@@ -1,245 +1,349 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<title>MooMoo P2P Ultra</title>
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MooMoo P2P Ultra - Pro Edition</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root { --border: #2c3e50; --green: #a2d058; --dark: #4e6e2a; --orange: #e67e22; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #b1cf67; font-family: 'Arial Rounded MT Bold', Arial, sans-serif; touch-action: none; user-select: none; }
+        canvas { display: block; }
 
-<style>
-body{margin:0;overflow:hidden;background:#b1cf67;font-family:Arial}
-canvas{display:block}
-#ui{position:absolute;top:10px;left:10px;color:#fff}
-.btn{background:#e67e22;border:3px solid #2c3e50;
-padding:6px;margin:2px;border-radius:8px;font-weight:bold}
-#inventory{display:flex;gap:4px;margin-top:5px}
-.slot{width:45px;height:45px;background:#555;
-border:3px solid #222;color:white;font-size:12px}
-</style>
+        /* MENU INICIAL */
+        #menu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .card { background: var(--green); border: 6px solid var(--border); padding: 25px; border-radius: 30px; text-align: center; box-shadow: 0 10px 0 var(--dark); width: 340px; }
+        input { padding: 12px; border: 3px solid var(--border); border-radius: 12px; margin: 8px 0; width: 85%; font-size: 16px; outline: none; }
+        .btn { background: var(--orange); color: white; border: 3px solid var(--border); padding: 12px 20px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 95%; margin: 5px 0; box-shadow: 0 5px 0 #a35d1a; transition: 0.1s; font-size: 14px; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #a35d1a; }
+
+        /* UI DO JOGO */
+        #ui { position: absolute; top: 15px; left: 15px; pointer-events: none; display: none; z-index: 5; }
+        .hud { background: rgba(0,0,0,0.6); padding: 12px; border-radius: 15px; border: 3px solid white; color: white; margin-bottom: 10px; font-size: 16px;}
+        .stats-detail { font-size: 11px; color: #f1c40f; margin-top: 5px; }
+        #craft-panel { display: none; flex-direction: column; gap: 5px; margin-top: 10px; pointer-events: auto; }
+        
+        /* HOTBAR */
+        #hotbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; pointer-events: auto; z-index: 10; }
+        .slot { width: 60px; height: 60px; background: rgba(0,0,0,0.6); border: 4px solid #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; cursor: pointer; transition: 0.2s; color: white; }
+        .slot.active { border-color: #f1c40f; background: rgba(241, 196, 15, 0.4); transform: scale(1.1); }
+
+        /* MINIMAPA */
+        #minimap { position: absolute; top: 15px; right: 15px; width: 100px; height: 100px; background: rgba(0,0,0,0.3); border: 3px solid white; border-radius: 10px; overflow: hidden; }
+
+        /* CONTROLES MOBILE */
+        #joy-container { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; background: rgba(255,255,255,0.2); border-radius: 50%; display: none; touch-action: none; }
+        #joy-stick { position: absolute; width: 50px; height: 50px; background: #fff; border-radius: 50%; top: 35px; left: 35px; opacity: 0.7; }
+        
+        #mobile-btns { position: absolute; bottom: 120px; right: 40px; display: none; flex-direction: column; gap: 15px; }
+        .m-btn { width: 75px; height: 75px; background: rgba(0,0,0,0.5); border: 4px solid white; border-radius: 50%; font-size: 30px; display: flex; align-items: center; justify-content: center; color: white; pointer-events: auto; }
+    </style>
 </head>
-
 <body>
-<canvas id="c"></canvas>
 
-<div id="ui">
-<div>
-🍎<span id="food">0</span>
-🌳<span id="wood">0</span>
-🪨<span id="stone">0</span><br>
-❤️ <span id="hp">100</span>
-</div>
+    <div id="menu-overlay">
+        <div class="card">
+            <h1 style="color:white; -webkit-text-stroke: 1.5px var(--border); font-size: 30px; margin:0 0 10px 0;">MooMoo P2P</h1>
+            <input type="text" id="nick" placeholder="NOME DO HERÓI" maxlength="12">
+            <button class="btn" style="background:#9b59b6; box-shadow:0 5px 0 #8e44ad;" onclick="toggleInputMode()" id="mode-btn">MODO: AUTO</button>
+            <button class="btn" onclick="start('host')">CRIAR SERVIDOR</button>
+            <input type="text" id="targetId" placeholder="ID DO AMIGO (PARA ENTRAR)">
+            <button class="btn" style="background:#3498db; box-shadow:0 5px 0 #2980b9;" onclick="start('join')">ENTRAR</button>
+        </div>
+    </div>
 
-<button class="btn" onclick="craft('Espada')">Craft Espada</button>
-<button class="btn" onclick="craft('Machado')">Craft Machado</button><br>
+    <div id="ui">
+        <div class="hud">
+            🍎 <span id="food">0</span> | 🌳 <span id="wood">0</span> | 🪨 <span id="stone">0</span><br>
+            ❤️ <span id="hp-text">100/100</span>
+            <div class="stats-detail" id="weapon-desc">Arma: Mão</div>
+        </div>
+        <div style="display: flex; gap: 5px; pointer-events: auto;">
+            <button class="btn" style="width:80px;" onclick="toggleCraft()">ITENS</button>
+            <button class="btn" style="width:80px; background:#27ae60; box-shadow:0 5px 0 #1e8449;" onclick="saveGame()">SALVAR</button>
+        </div>
+        <div id="craft-panel">
+            <button class="btn" style="font-size:11px;" onclick="craft('Espada')">ESPADA (30W, 20S)</button>
+            <button class="btn" style="font-size:11px;" onclick="craft('Machado')">MACHADO (20W)</button>
+        </div>
+    </div>
 
-<button class="btn" onclick="exportSave()">Salvar Arquivo</button>
-<button class="btn" onclick="document.getElementById('load').click()">Carregar</button>
-<input type="file" id="load" hidden>
+    <div id="hotbar">
+        <div class="slot active" onclick="selectSlot(0)" id="slot-0">👊</div>
+        <div class="slot" onclick="selectSlot(1)" id="slot-1">❔</div>
+        <div class="slot" onclick="selectSlot(2)" id="slot-2">❔</div>
+        <div class="slot" onclick="selectSlot(3)" id="slot-3">🍎</div>
+    </div>
 
-<div id="inventory"></div>
-</div>
+    <div id="joy-container"><div id="joy-stick"></div></div>
+    <div id="mobile-btns"><div class="m-btn" id="btn-attack">⚔️</div></div>
+
+    <div id="minimap"><canvas id="miniCanvas" width="100" height="100"></canvas></div>
+    <canvas id="gameCanvas"></canvas>
 
 <script>
-const canvas=c=document.getElementById("c")
-const ctx=c.getContext("2d")
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const mCanvas = document.getElementById('miniCanvas');
+    const mCtx = mCanvas.getContext('2d');
 
-let peer,conn
-let keys={}
-let world=[]
-let others={}
+    let peer, conn, gameRunning = false;
+    let world = [], entities = [];
+    let others = {};
+    let attackAnim = 0;
+    let joyPos = { x: 0, y: 0 };
+    let inputMode = 'auto';
+    let activeSlot = 0;
 
-let inventory={
- slots:Array(6).fill(null),
- equipped:null
-}
+    // Inventário Inicial
+    const inventory = [
+        { name: "Mão", type: "weapon", dmg: 5, speed: 1.0, icon: "👊" },
+        { name: "Vazio", type: "empty", icon: "❔" },
+        { name: "Vazio", type: "empty", icon: "❔" },
+        { name: "Maçã", type: "food", icon: "🍎" }
+    ];
 
-let p={
- id:null,name:"Player",
- x:2500,y:2500,
- hp:100,maxHp:100,
- wood:0,food:0,stone:0,
- weapon:{name:"Mão",dmg:5,speed:1},
- angle:0
-}
+    let p = {
+        id: null, name: "User", x: 2500, y: 2500, 
+        hp: 100, maxHp: 100,
+        wood: 0, food: 0, stone: 0,
+        weapon: inventory[0], 
+        angle: 0
+    };
 
-/* ===== WORLD ===== */
-function generate(){
- world=[]
- const t=["tree","rock","bush"]
- for(let i=0;i<200;i++)
-  world.push({
-   x:Math.random()*5000,
-   y:Math.random()*5000,
-   s:30+Math.random()*10,
-   type:t[Math.floor(Math.random()*3)]
-  })
-}
-generate()
+    function saveGame() {
+        const data = { name: p.name, wood: p.wood, food: p.food, stone: p.stone, inv: inventory };
+        localStorage.setItem('moomoo_p2p_pro_save', JSON.stringify(data));
+        alert("Salvo!");
+    }
 
-/* ===== INVENTORY ===== */
-function updateInventory(){
- const inv=document.getElementById("inventory")
- inv.innerHTML=""
- inventory.slots.forEach((it,i)=>{
-  let b=document.createElement("button")
-  b.className="slot"
-  b.innerText=it?it.name[0]:"-"
-  b.onclick=()=>equip(i)
-  inv.appendChild(b)
- })
-}
-updateInventory()
+    function loadGame() {
+        const saved = localStorage.getItem('moomoo_p2p_pro_save');
+        if(saved) {
+            const data = JSON.parse(saved);
+            p.wood = data.wood; p.food = data.food; p.stone = data.stone;
+            data.inv.forEach((item, i) => {
+                inventory[i] = item;
+                document.getElementById(`slot-${i}`).innerText = item.icon;
+            });
+            updateUI();
+        }
+    }
 
-function equip(i){
- let it=inventory.slots[i]
- if(!it)return
- if(inventory.equipped?.id===it.id){
-  inventory.equipped=null
-  p.weapon={name:"Mão",dmg:5,speed:1}
- }else{
-  inventory.equipped=it
-  p.weapon=it
- }
-}
+    function selectSlot(index) {
+        if(inventory[index].type === "empty") return;
+        activeSlot = index;
+        p.weapon = inventory[index];
+        document.querySelectorAll('.slot').forEach((s, i) => s.classList.toggle('active', i === index));
+        updateUI();
+    }
 
-/* ===== CRAFT ===== */
-function craft(type){
- let w=type=="Espada"?30:20
- let s=type=="Espada"?20:0
- if(p.wood<w||p.stone<s)return alert("Sem recursos")
- let slot=inventory.slots.findIndex(v=>v==null)
- if(slot==-1)return alert("Inventário cheio")
+    function toggleInputMode() {
+        inputMode = inputMode === 'auto' ? 'pc' : (inputMode === 'pc' ? 'mobile' : 'auto');
+        document.getElementById('mode-btn').innerText = "MODO: " + inputMode.toUpperCase();
+    }
 
- p.wood-=w;p.stone-=s
+    function craft(type) {
+        let wCost = type === 'Espada' ? 30 : 20;
+        let sCost = type === 'Espada' ? 20 : 0;
+        if(p.wood >= wCost && p.stone >= sCost) {
+            p.wood -= wCost; p.stone -= sCost;
+            const item = {
+                name: type, type: "weapon",
+                dmg: (type === 'Espada' ? 15 : 8) + Math.floor(Math.random() * 10),
+                speed: (0.8 + Math.random() * 0.7).toFixed(1),
+                icon: type === 'Espada' ? "⚔️" : "🪓"
+            };
+            const idx = type === 'Espada' ? 2 : 1;
+            inventory[idx] = item;
+            document.getElementById(`slot-${idx}`).innerText = item.icon;
+            selectSlot(idx);
+        }
+    }
 
- let item={
-  id:crypto.randomUUID(),
-  name:type,
-  dmg:(type=="Espada"?15:8)+Math.floor(Math.random()*10),
-  speed:+(0.7+Math.random()).toFixed(2)
- }
+    // CONTROLES
+    const keys = {};
+    window.onkeydown = e => { 
+        keys[e.key.toLowerCase()] = true; 
+        if(e.key === 'q') heal();
+        if(!isNaN(e.key) && e.key > 0 && e.key <= 4) selectSlot(e.key - 1);
+    };
+    window.onkeyup = e => keys[e.key.toLowerCase()] = false;
+    window.onmousemove = e => { if(!isMobileActive()) p.angle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2); };
+    window.onmousedown = () => { if(!isMobileActive()) attack(); };
 
- inventory.slots[slot]=item
- updateInventory()
- updateUI()
-}
+    function isMobileActive() { return (inputMode === 'mobile') || (inputMode === 'auto' && ('ontouchstart' in window)); }
 
-/* ===== SAVE FILE ===== */
-function exportSave(){
- const data={p,inventory}
- const blob=new Blob([JSON.stringify(data,null,2)],{type:"text/plain"})
- const a=document.createElement("a")
- a.href=URL.createObjectURL(blob)
- a.download="moomoo_save.txt"
- a.click()
-}
+    function attack() {
+        if(attackAnim <= 0) {
+            if(p.weapon.type === "food") { heal(); return; }
+            attackAnim = Math.PI;
+            world.forEach(obj => {
+                if(Math.hypot(p.x - obj.x, p.y - obj.y) < 90) {
+                    let m = Math.ceil(p.weapon.dmg / 5);
+                    if(obj.type === 'tree') p.wood += 5 * m;
+                    if(obj.type === 'rock') p.stone += 5 * m;
+                    if(obj.type === 'bush') p.food += 5 * m;
+                }
+            });
+            updateUI(); sendData();
+        }
+    }
 
-document.getElementById("load").onchange=e=>{
- const r=new FileReader()
- r.onload=()=>{
-  let d=JSON.parse(r.result)
-  p=d.p
-  inventory=d.inventory
-  updateInventory()
-  updateUI()
- }
- r.readAsText(e.target.files[0])
-}
+    function heal() {
+        if(p.food >= 10 && p.hp < p.maxHp) { p.food -= 10; p.hp = Math.min(p.maxHp, p.hp + 20); updateUI(); sendData(); }
+    }
 
-/* ===== COLLISION ===== */
-function hit(x,y,r,o){
- return Math.hypot(x-o.x,y-o.y)<r+o.s
-}
+    function update() {
+        const speed = 5;
+        if(keys['w']) p.y -= speed; if(keys['s']) p.y += speed;
+        if(keys['a']) p.x -= speed; if(keys['d']) p.x += speed;
+        p.x += joyPos.x * (speed + 1); p.y += joyPos.y * (speed + 1);
+        p.x = Math.max(0, Math.min(5000, p.x)); p.y = Math.max(0, Math.min(5000, p.y));
 
-function move(dx,dy){
- let nx=p.x+dx,ny=p.y+dy
- for(let o of world)
-  if(hit(nx,ny,28,o))return
- p.x=nx;p.y=ny
-}
+        if(attackAnim > 0) attackAnim -= (0.2 * (p.weapon.speed || 1));
+        
+        entities.forEach(en => {
+            en.x += Math.cos(en.angle) * en.speed;
+            en.y += Math.sin(en.angle) * en.speed;
+            if(Math.random() > 0.98) en.angle = Math.random() * Math.PI * 2;
+            en.x = Math.max(0, Math.min(5000, en.x)); en.y = Math.max(0, Math.min(5000, en.y));
+        });
 
-/* ===== INPUT ===== */
-onkeydown=e=>keys[e.key]=1
-onkeyup=e=>keys[e.key]=0
-onmousedown=attack
-onmousemove=e=>{
- p.angle=Math.atan2(e.clientY-c.height/2,e.clientX-c.width/2)
-}
+        if(keys['w']||keys['a']||keys['s']||keys['d']||joyPos.x!==0) sendData();
+        mCtx.fillStyle = "#b1cf67"; mCtx.fillRect(0,0,100,100);
+        mCtx.fillStyle = "white"; mCtx.fillRect((p.x/5000)*100, (p.y/5000)*100, 4, 4);
+    }
 
-/* ===== ATTACK ===== */
-function attack(){
- world.forEach(o=>{
-  if(Math.hypot(p.x-o.x,p.y-o.y)<90){
-   let m=Math.ceil(p.weapon.dmg/5)
-   if(o.type=="tree")p.wood+=5*m
-   if(o.type=="rock")p.stone+=5*m
-   if(o.type=="bush")p.food+=5*m
-  }
- })
- updateUI()
-}
+    function render() {
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        ctx.clearRect(0,0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(canvas.width/2 - p.x, canvas.height/2 - p.y);
+        
+        // World
+        ctx.strokeStyle = "rgba(0,0,0,0.05)";
+        for(let i=0; i<=5000; i+=100) {
+            ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, 5000); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(5000, i); ctx.stroke();
+        }
 
-/* ===== UI ===== */
-function updateUI(){
- food.innerText=p.food
- wood.innerText=p.wood
- stone.innerText=p.stone
- hp.innerText=p.hp
-}
+        world.forEach(obj => {
+            ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 4;
+            if(obj.type === 'tree') ctx.fillStyle = "#5d9732";
+            else if(obj.type === 'rock') ctx.fillStyle = "#7f8c8d";
+            else ctx.fillStyle = "#d35400";
+            ctx.beginPath(); 
+            if(obj.type === 'rock') ctx.rect(obj.x-obj.s, obj.y-obj.s, obj.s*2, obj.s*2);
+            else ctx.arc(obj.x, obj.y, obj.s, 0, Math.PI*2);
+            ctx.fill(); ctx.stroke();
+        });
 
-/* ===== LOOP ===== */
-function loop(){
- c.width=innerWidth;c.height=innerHeight
- ctx.save()
- ctx.translate(c.width/2-p.x,c.height/2-p.y)
+        entities.forEach(en => {
+            ctx.font = "40px Arial";
+            ctx.fillText(en.type === 'cow' ? "🐄" : "🐺", en.x - 20, en.y + 20);
+        });
 
- ctx.strokeStyle="#0002"
- for(let i=0;i<=5000;i+=100){
-  ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,5000);ctx.stroke()
-  ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(5000,i);ctx.stroke()
- }
+        for(let id in others) {
+            let o = others[id];
+            drawPlayer(o.x, o.y, o.angle, o.name, o.hp, false, o.anim, o.icon);
+        }
+        drawPlayer(p.x, p.y, p.angle, p.name, p.hp, true, attackAnim, p.weapon.icon);
+        
+        ctx.restore();
+        if(gameRunning) { update(); requestAnimationFrame(render); }
+    }
 
- world.forEach(o=>{
-  ctx.fillStyle=o.type=="tree"?"#5d9732":o.type=="rock"?"#7f8c8d":"#d35400"
-  ctx.beginPath()
-  o.type=="rock"
-   ?ctx.rect(o.x-o.s,o.y-o.s,o.s*2,o.s*2)
-   :ctx.arc(o.x,o.y,o.s,0,7)
-  ctx.fill()
- })
+    function drawPlayer(x, y, ang, name, hp, isMe, anim, icon) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "red"; ctx.fillRect(-30, -55, 60, 8);
+        ctx.fillStyle = "#2ecc71"; ctx.fillRect(-30, -55, 60 * (hp/100), 8);
+        ctx.fillStyle = "white"; ctx.textAlign = "center";
+        ctx.font = "bold 14px Arial"; ctx.fillText(name, 0, -65);
+        
+        ctx.rotate(ang);
+        let off = Math.sin(anim || 0) * 20;
+        
+        // Item na Mão
+        if(anim > 0) {
+            ctx.font = "24px Arial";
+            ctx.fillText(icon || "👊", 35 + off, 5);
+        }
 
- draw(p.x,p.y,true)
- ctx.restore()
+        ctx.fillStyle = "#d2b48c"; ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(25 + off, -15, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(25 + off, 15, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = isMe ? "#d2b48c" : "#e74c3c";
+        ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+    }
 
- let sp=5
- if(keys.w)move(0,-sp)
- if(keys.s)move(0,sp)
- if(keys.a)move(-sp,0)
- if(keys.d)move(sp,0)
+    function generate() {
+        const types = ['tree', 'rock', 'bush'];
+        world = []; entities = [];
+        for(let i=0; i<150; i++) world.push({ x: Math.random()*5000, y: Math.random()*5000, type: types[Math.floor(Math.random()*3)], s: 30+Math.random()*15 });
+        for(let i=0; i<30; i++) entities.push({ x: Math.random()*5000, y: Math.random()*5000, type: Math.random()>0.4?'cow':'wolf', speed: 1+Math.random(), angle: Math.random()*Math.PI*2 });
+    }
 
- requestAnimationFrame(loop)
-}
-loop()
+    function start(mode) {
+        p.name = document.getElementById('nick').value || "Player";
+        document.getElementById('menu-overlay').style.display = 'none';
+        document.getElementById('ui').style.display = 'block';
+        if(isMobileActive()) { 
+            document.getElementById('joy-container').style.display = 'block'; 
+            document.getElementById('mobile-btns').style.display = 'flex';
+            setupMobile(); 
+        }
+        generate(); gameRunning = true; render(); initP2P(mode);
+    }
 
-function draw(x,y,me){
- ctx.save()
- ctx.translate(x,y)
- ctx.rotate(p.angle)
- ctx.fillStyle=me?"#d2b48c":"#e74c3c"
- ctx.beginPath();ctx.arc(0,0,28,0,7);ctx.fill()
- ctx.restore()
-}
+    function setupMobile() {
+        const joy = document.getElementById('joy-container');
+        const stick = document.getElementById('joy-stick');
+        const handle = (e) => {
+            const rect = joy.getBoundingClientRect();
+            const touch = e.touches[0];
+            const dx = touch.clientX - (rect.left + 60), dy = touch.clientY - (rect.top + 60);
+            const dist = Math.min(Math.hypot(dx, dy), 50), angle = Math.atan2(dy, dx);
+            joyPos = { x: Math.cos(angle)*(dist/50), y: Math.sin(angle)*(dist/50) };
+            p.angle = angle; stick.style.transform = `translate(${joyPos.x*40}px, ${joyPos.y*40}px)`;
+        };
+        joy.addEventListener('touchstart', handle); joy.addEventListener('touchmove', handle);
+        joy.addEventListener('touchend', () => { joyPos = {x:0,y:0}; stick.style.transform = 'translate(0,0)'; });
+        document.getElementById('btn-attack').addEventListener('touchstart', e => { e.preventDefault(); attack(); });
+    }
 
-/* ===== P2P ===== */
-peer=new Peer()
-peer.on("open",id=>{
- p.id=id
- alert("Seu ID: "+id)
-})
-peer.on("connection",c=>{
- conn=c
- conn.on("data",d=>others[d.id]=d)
-})
+    function updateUI() {
+        document.getElementById('food').innerText = p.food;
+        document.getElementById('wood').innerText = p.wood;
+        document.getElementById('stone').innerText = p.stone;
+        document.getElementById('hp-text').innerText = `${Math.floor(p.hp)}/100`;
+        document.getElementById('weapon-desc').innerText = `Item: ${p.weapon.name}`;
+    }
+
+    function toggleCraft() { const c = document.getElementById('craft-panel'); c.style.display = c.style.display === 'flex' ? 'none' : 'flex'; }
+
+    function initP2P(mode) {
+        peer = new Peer();
+        peer.on('open', id => { 
+            if(mode === 'host') prompt("ID DO SERVIDOR:", id);
+            else { const tid = document.getElementById('targetId').value; if(tid) { conn = peer.connect(tid); setupConn(); } }
+        });
+        peer.on('connection', c => { conn = c; setupConn(); });
+    }
+
+    function setupConn() {
+        conn.on('open', () => setInterval(sendData, 50));
+        conn.on('data', data => { others[data.id] = data; });
+    }
+
+    function sendData() {
+        if(conn && conn.open) conn.send({ id: p.id, x: p.x, y: p.y, angle: p.angle, name: p.name, hp: p.hp, anim: attackAnim, icon: p.weapon.icon });
+    }
+
+    window.onload = loadGame;
 </script>
 </body>
-</html>
+ </html>
+ 
