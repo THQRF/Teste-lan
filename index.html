@@ -1,72 +1,74 @@
 <!DOCTYPE html><html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>MooLike.io P2P Ultimate</title>
+<title>MooLike.io P2P GODMODE</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="data:application/json,{"name":"MooLike","short_name":"MooLike","display":"standalone"}">
 <style>
-body{margin:0;background:#0f0f0f;color:#fff;font-family:sans-serif;overflow:hidden}
-#ui{position:fixed;top:0;left:0;width:100%;background:#111;padding:4px;text-align:center;z-index:10}
-canvas{background:#2ecc71;display:block;margin-top:42px}
-#chat{position:fixed;bottom:0;left:0;width:100%;background:#111;padding:4px}
-#chatlog{max-height:120px;overflow-y:auto;font-size:12px;text-align:left}
+body{margin:0;background:#0b0b0b;color:#fff;font-family:sans-serif;overflow:hidden}
+#top{position:fixed;top:0;width:100%;background:#111;padding:4px;text-align:center;z-index:10}
+#chat{position:fixed;bottom:0;width:100%;background:#111;font-size:12px}
+#log{max-height:90px;overflow-y:auto;text-align:left}
+canvas{background:#2ecc71;display:block;margin-top:40px}
 button,input{padding:4px;margin:2px}
-.touch{position:fixed;bottom:80px;left:20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
-<div id="ui">
-<button onclick="createRoom()">Criar Sala</button>
-<input id="room" placeholder="ID da sala">
+<div id="top">
+<button onclick="createRoom()">Criar</button>
+<input id="room" placeholder="Sala">
 <button onclick="joinRoom()">Entrar</button>
+<button onclick="saveGame()">Salvar</button>
+<button onclick="loadGame()">Carregar</button>
 <span id="status"></span>
 </div>
-<canvas id="game" width="1000" height="520"></canvas>
+<canvas id="game" width="1200" height="600"></canvas>
 <div id="chat">
-<div id="chatlog"></div>
-<input id="chatmsg" placeholder="Digite e Enter" onkeydown="if(event.key==='Enter')sendChat()">
+<div id="log"></div>
+<input id="msg" placeholder="chat" onkeydown="if(event.key==='Enter')sendChat()">
 </div>
-<div class="touch" id="touch"></div>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
-/* ====== CORE ====== */
+/* CORE */
 const c=document.getElementById('game'),ctx=c.getContext('2d');
 let peer,conns={},isHost=false,myId;
-let players={},resources=[],structures=[],bots=[];
-const keys={},speed=2.5;
-let chatlog=document.getElementById('chatlog');addEventListener('keydown',e=>keys[e.key]=1); addEventListener('keyup',e=>keys[e.key]=0);
+let players={},resources=[],structures=[],bots=[],spectators=[];
+let camera={x:0,y:0};
+const keys={},speed=2.8;addEventListener('keydown',e=>keys[e.key]=1); addEventListener('keyup',e=>keys[e.key]=0);
 
-function createRoom(){isHost=true;peer=new Peer();peer.on('open',id=>{myId=id;players[id]=newPlayer(500,260);spawnWorld();status('Sala: '+id)}); peer.on('connection',c=>{conns[c.peer]=c;players[c.peer]=newPlayer(rand(60,940),rand(60,460));c.on('data',d=>handleData(c.peer,d))})}
+function createRoom(){isHost=true;peer=new Peer();peer.on('open',id=>{myId=id;players[id]=newPlayer(0,0);genWorld();status('Sala '+id)}); peer.on('connection',c=>{conns[c.peer]=c;players[c.peer]=newPlayer(rand(-400,400),rand(-300,300));c.on('data',d=>handleData(c.peer,d))})} function joinRoom(){peer=new Peer();peer.on('open',id=>{myId=id;const c=peer.connect(room.value);conns[c.peer]=c;c.on('data',d=>handleData(null,d));status('Conectado')})} function handleData(pid,d){if(d.type==='input'&&isHost)applyInput(players[pid],d); if(d.type==='state'&&!isHost)Object.assign(window,d.state); if(d.type==='chat')chat(d.msg)}
 
-function joinRoom(){peer=new Peer();peer.on('open',id=>{myId=id;const c=peer.connect(document.getElementById('room').value);conns[c.peer]=c;c.on('data',d=>handleData(null,d));status('Conectado')})}
+/* PLAYER */ function newPlayer(x,y){return{x,y,hp:100,wood:20,food:10,weapon:'spear',skin:color(),inv:{wall:0,mill:0},score:0}}
 
-function handleData(pid,d){if(d.type==='input'&&isHost)applyInput(players[pid],d); if(d.type==='state'&&!isHost){players=d.players;resources=d.resources;structures=d.structures;bots=d.bots} if(d.type==='chat')addChat(d.msg)}
+/* WORLD */ function genWorld(){for(let i=0;i<30;i++)resources.push({x:rand(-800,800),y:rand(-600,600),t:'tree',hp:50});for(let i=0;i<10;i++)bots.push({x:rand(-500,500),y:rand(-400,400),hp:80})}
 
-/* ====== PLAYER ====== */ function newPlayer(x,y){return{x,y,hp:100,wood:0,food:0,weapon:'spear',skin:randColor(),inv:[]}}
+/* INPUT */ function applyInput(p,d){p.x+=d.dx;p.y+=d.dy}
 
-/* ====== WORLD ====== */ function spawnWorld(){for(let i=0;i<15;i++)resources.push({x:rand(40,960),y:rand(40,480),type:'tree',hp:40}); for(let i=0;i<6;i++)resources.push({x:rand(40,960),y:rand(40,480),type:'food',hp:1}); for(let i=0;i<3;i++)bots.push({x:rand(80,920),y:rand(80,440),hp:60})}
+/* UPDATE */ function update(){let dx=0,dy=0;if(keys.w)dy-=speed;if(keys.s)dy+=speed;if(keys.a)dx-=speed;if(keys.d)dx+=speed; if(keys['1'])players[myId].weapon='spear';if(keys['2'])players[myId].weapon='sword'; if(keys['b'])build('wall');if(keys['m'])build('mill'); if(isHost){applyInput(players[myId],{dx,dy});logic(players[myId]);ai();antiCheat();broadcast({type:'state',state:{players,resources,structures,bots}})} else send({type:'input',dx,dy})}
 
-/* ====== INPUT ====== */ function applyInput(p,d){p.x+=d.dx;p.y+=d.dy}
+/* LOGIC */ function logic(p){resources.forEach(r=>{if(dist(p,r)<25&&r.hp>0){if(r.t==='tree'){r.hp--;p.wood++}}});structures.forEach(s=>{if(s.t==='mill'&&dist(p,s)<30)p.food++})}
 
-/* ====== UPDATE ====== */ function update(){let dx=0,dy=0;if(keys.w)dy-=speed;if(keys.s)dy+=speed;if(keys.a)dx-=speed;if(keys.d)dx+=speed; if(keys['1'])players[myId].weapon='spear'; if(keys['2'])players[myId].weapon='sword'; if(isHost){applyInput(players[myId],{dx,dy});logic(players[myId]);botsAI();broadcast({type:'state',players,resources,structures,bots})} else send({type:'input',dx,dy})}
+/* COMBAT */ function attack(p){let r=p.weapon==='spear'?45:25,d=p.weapon==='spear'?5:9;bots.forEach(b=>{if(dist(p,b)<r){b.hp-=d;p.score++;snd()}})}
 
-/* ====== LOGIC ====== */ function logic(p){resources.forEach(r=>{if(dist(p,r)<20&&r.hp>0){if(r.type==='tree'){r.hp--;p.wood++}if(r.type==='food'){r.hp=0;p.hp=Math.min(100,p.hp+15)}}}); structures.forEach(s=>{if(dist(p,s)<20&&s.type==='mill')p.food++}); }
+/* AI */ function ai(){bots.forEach(b=>{let t=nearest(b);if(!t)return;let a=Math.atan2(t.y-b.y,t.x-b.x);b.x+=Math.cos(a);b.y+=Math.sin(a);if(dist(b,t)<20)t.hp-=0.4})} function nearest(b){let arr=Object.values(players);return arr.sort((a,c)=>dist(b,a)-dist(b,c))[0]}
 
-/* ====== COMBAT ====== */ function attack(p){let range=p.weapon==='spear'?40:25;let dmg=p.weapon==='spear'?6:10; bots.forEach(b=>{if(dist(p,b)<range){b.hp-=dmg;playSound()}})}
+/* BUILD */ function build(t){let p=players[myId];if(p.wood<10)return;p.wood-=10;structures.push({x:p.x+30,y:p.y,t})}
 
-/* ====== BOTS ====== */ function botsAI(){bots.forEach(b=>{let t=players[Object.keys(players)[0]];if(!t)return; let a=Math.atan2(t.y-b.y,t.x-b.x);b.x+=Math.cos(a)*1.2;b.y+=Math.sin(a)*1.2;if(dist(b,t)<20)t.hp-=0.3})}
+/* ANTI-CHEAT */ function antiCheat(){Object.values(players).forEach(p=>{p.x=Math.max(-1000,Math.min(1000,p.x));p.y=Math.max(-800,Math.min(800,p.y))})}
 
-/* ====== BUILD ====== */ function build(type){let p=players[myId];if(p.wood<10)return;p.wood-=10;structures.push({x:p.x+30,y:p.y,type})}
+/* DRAW */ function draw(){ctx.clearRect(0,0,c.width,c.height);let me=players[myId];if(me){camera.x=me.x-c.width/2;camera.y=me.y-c.height/2} // minimap ctx.fillStyle='#000';ctx.fillRect(c.width-160,10,150,90); Object.values(players).forEach(p=>{ctx.fillStyle=p.skin;ctx.fillRect(c.width-160+(p.x+1000)/15,10+(p.y+800)/18,3,3)}) resources.forEach(r=>{ctx.fillStyle='#145a32';ctx.beginPath();ctx.arc(r.x-camera.x,r.y-camera.y,12,0,6.28);ctx.fill()}); structures.forEach(s=>{ctx.fillStyle='#7f8c8d';ctx.fillRect(s.x-camera.x-10,s.y-camera.y-10,20,20)}); bots.forEach(b=>{ctx.fillStyle='#9b59b6';ctx.beginPath();ctx.arc(b.x-camera.x,b.y-camera.y,14,0,6.28);ctx.fill()}); Object.values(players).forEach(p=>{ctx.fillStyle=p.skin;ctx.beginPath();ctx.arc(p.x-camera.x,p.y-camera.y,15,0,6.28);ctx.fill();ctx.fillText('❤'+Math.floor(p.hp),p.x-camera.x-15,p.y-camera.y-18)})}
 
-/* ====== DRAW ====== */ function draw(){ctx.clearRect(0,0,c.width,c.height); // minimap ctx.fillStyle='#000';ctx.fillRect(840,10,150,90); for(let id in players){let p=players[id];ctx.fillStyle=p.skin;ctx.beginPath();ctx.arc(p.x,p.y,14,0,6.28);ctx.fill();ctx.fillText('❤'+Math.floor(p.hp),p.x-14,p.y-18); ctx.fillRect(840+p.x/10,10+p.y/10,3,3)} resources.forEach(r=>{ctx.fillStyle=r.type==='tree'?'#145a32':'#f1c40f';ctx.beginPath();ctx.arc(r.x,r.y,10,0,6.28);ctx.fill()}); structures.forEach(s=>{ctx.fillStyle='#7f8c8d';ctx.fillRect(s.x-10,s.y-10,20,20)}); bots.forEach(b=>{ctx.fillStyle='#9b59b6';ctx.beginPath();ctx.arc(b.x,b.y,13,0,6.28);ctx.fill()})}
+/* CHAT */ function sendChat(){let v=msg.value;if(!v)return;msg.value='';broadcast({type:'chat',msg:myId+': '+v});chat(myId+': '+v)} function chat(t){log.innerHTML+=t+'<br>';log.scrollTop=9999}
 
-/* ====== CHAT ====== */ function sendChat(){let v=document.getElementById('chatmsg').value;if(!v)return;document.getElementById('chatmsg').value='';broadcast({type:'chat',msg:myId+': '+v});addChat(myId+': '+v)} function addChat(t){chatlog.innerHTML+=t+'<br>';chatlog.scrollTop=9999}
+/* SAVE */ function saveGame(){localStorage.setItem('moolike',JSON.stringify({players,resources,structures}))} function loadGame(){let d=JSON.parse(localStorage.getItem('moolike'));if(d){players=d.players;resources=d.resources;structures=d.structures}}
 
-/* ====== NET ====== */ function send(d){Object.values(conns).forEach(c=>c.send(d))} function broadcast(d){Object.values(conns).forEach(c=>c.send(d))}
+/* NET */ function send(d){Object.values(conns).forEach(c=>c.send(d))} function broadcast(d){Object.values(conns).forEach(c=>c.send(d))}
 
-/* ====== UTILS ====== / function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)} function rand(a,b){return Math.random()(b-a)+a} function randColor(){return hsl(${Math.random()*360},70%,60%)} function status(t){document.getElementById('status').innerText=t}
+/* UTIL / function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)} function rand(a,b){return Math.random()(b-a)+a} function color(){return hsl(${Math.random()*360},70%,60%)} function status(t){top.querySelector('#status').innerText=t}
 
-/* ====== SOUND ====== */ let audio=new Audio('https://actions.google.com/sounds/v1/impacts/wood_plank_flicks.ogg'); function playSound(){audio.currentTime=0;audio.play()}
+/* SOUND */ let au=new Audio('https://actions.google.com/sounds/v1/impacts/wood_plank_flicks.ogg');function snd(){au.currentTime=0;au.play()}
 
-/* ====== LOOP ====== */ setInterval(()=>{update();draw()},1000/60); </script>
+setInterval(()=>{update();draw()},1000/60); </script>
 
 </body>
-</html>
+  </html>
